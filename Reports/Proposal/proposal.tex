@@ -47,7 +47,7 @@ Michigan State University\\
 %%%%%%%%% ABSTRACT
 \begin{abstract}
 We aim to color gray-scale images automatically, without direct human assistance.
-This automatic colorization is an underconstrained problem 
+This automatic colorization is an underconstrained problem
 since there is usually no one-to-one correspondence between color and local texture.
 In this work, we will try to apply recent advances in generative models which is Generative Adversarial Network~\cite{goodfellow2014generative} (GAN) to a conditional setting. Instead of generate realistic samples from random noise as conventional GAN, we will generate realistic samples (color image) from both input gray-scale image and noise.
 \end{abstract}
@@ -55,11 +55,10 @@ In this work, we will try to apply recent advances in generative models which is
 %%%%%%%%% BODY TEXT
 \section{Introduction}
 
-Automated colorization of gray-scale images has been subject to much research within the computer vision and machine learning communities. Beyond simply being fascinating from an aesthetics and artificial intelligence perspective, such capability has broad practical applications ranging from video restoration to image enhancement for
-improved interpretability. 
+Automated colorization of gray-scale images has been subject to much research within the computer vision and machine learning communities. Its capability has broad practical applications ranging from image enhancement to video restoration.
 
-At first glance, hallucinating image colors seems daunting, since so much of the information (two out of the
-three dimensions) has been lost. However, the semantics of the scene and its surface texture provide ample cues for many regions in each image. For this work, our goal is not necessarily to recover the actual ground truth color, but rather to produce a plausible colorization that could potentially fool a human observer. Therefore, our task becomes much more achievable: to model enough of the statistical dependencies between the semantics and thevtextures of grayscale images and their color versions in order to produce visually compelling results.
+At first glance, hallucinating image colors seems impossible, since so much of the information (two out of the
+three dimensions) has been lost. However, the semantics of the scene and its surface texture provide sufficient clues for many regions in each image (i.e the sea should be blue or the grass should be green). For this work, our goal is not necessarily to recover the actual ground truth color, but rather to produce a plausible colorization that could potentially fool a human observer. Therefore, our task becomes much more achievable: to model enough of the statistical dependencies between the semantics, the textures of gray-scale images and their color versions in order to produce visually compelling results.
 
 %------------------------------------------------------------------------
 \section{Proposed approach}
@@ -67,7 +66,7 @@ three dimensions) has been lost. However, the semantics of the scene and its sur
 
 \begin{figure} [t!]
     \centering
-    \begin{subfigure}[b]{0.48\textwidth}        
+    \begin{subfigure}[b]{0.48\textwidth}
         \includegraphics[trim=30 20 150 0, clip,width=\textwidth]{img/Generator.pdf}
     \end{subfigure}
     \begin{subfigure}[b]{0.48\textwidth}
@@ -81,17 +80,17 @@ three dimensions) has been lost. However, the semantics of the scene and its sur
 
 Each color image can be presented in Lab space. Any gray-scale input image can be treat as lightness component (L) of the final color out. Thus, we only need to estimate a, b component. The system consist of two network: generator ($G$) and discriminator ($D$). The generator take the gray-scale image ($L$) and random noise ($z$) as inputs and try to produce $a, b$ component of the image. Meanwhile D take all three components of images as inputs and try to distinguish between samples from the training data and generated samples. In other word, $D$ will produce one single value $D(a,b|L)$ that is probability $a, b$ is the true color component correspond to $L$. Both network $G, D$ will be train to optimize this function:
 \begin{eqnarray*}
- \min_{G} \max_{D} V(G,D) = &&E_{a, b \sim p_{data}(a,b | L)} [\log(D(a,b|L))] \\ 
+ \min_{G} \max_{D} V(G,D) = &&E_{a, b \sim p_{data}(a,b | L)} [\log(D(a,b|L))] \\
                           + &&E_{z \sim p(z), L \sim p_{data}(L) } [\log(1-D(G(z,L)))]
 \end{eqnarray*}
 
 
 In order to deal with any input size, $G$ will be a fully convolutional network as inspired by~\cite{long2015fully}. All convolution filter has size $3 \times 3$ as it has been shown to be effective in lasted CNN.
 
-\section{Experiments & Evaluation}
+\section{Experiments and Evaluation}
 Our networks will be train and test on ImageNet dataset. To simplify the setup for D, all the training samples will have fixed size of $64\times 64$. In the test state, sample images with any size can be used since it only go though the generator $G$.
 
-Because of the nature of the task, it's difficult to come up with a quantitative metrics to evaluate the performance. We're going to create a UI for people to decide which is more realistic between generated and ground truth images. This can give a sense to what extend our generated images can fool human.  
+Because of the nature of the task, it's difficult to come up with a quantitative metrics to evaluate the performance. We're going to create a UI for people to decide which is more realistic between generated and ground truth images. This can give a sense to what extend our generated images can fool a human observer.
 
 
 
