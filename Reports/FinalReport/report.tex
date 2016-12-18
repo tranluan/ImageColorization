@@ -127,6 +127,42 @@ Our model is a direct application of conditional GAN. Each color image can be pr
 
 
 \section{Implementation Details}
+\subsection{Network architecture}
+
+
+\begin{figure} [t!]
+    \centering
+    \begin{subfigure}[b]{0.49\textwidth}
+        \includegraphics[width=\textwidth]{img/network_1.png}
+        \caption{Blockwise corruption}
+        \label{fig:network_1}
+    \end{subfigure}
+    \begin{subfigure}[b]{0.49\textwidth}
+        \includegraphics[width=\textwidth]{img/network_2.png}
+        \caption{Encoder-Decoder architecture}
+        \label{fig:network_2}
+    \end{subfigure}
+    \begin{subfigure}[b]{0.49\textwidth}
+        \includegraphics[width=\textwidth]{img/network_3.png}
+        \caption{Encoder-Decoder with skip connection architecture}
+        \label{fig:network_3}
+    \end{subfigure}
+    \caption{\small Generator network architecture}
+    \vspace{-0.2in}
+   \label{fig:network}
+\end{figure}
+
+The initial network architecture is inspired by a recent work on image super-resolution~\cite{kim2015accurate}. In this work, they use a deep convolution network with output and input has the same size, which is similar to our settings. They only use convolution layers with stride of 1. Without any down-sampling operation, all feature responses have same size as input (and output). Visualization of this network are shown in figure~\ref{fig:network_1}.
+
+However, this network architecture has a downside that prevent us to applied to our colorization problem is that its has small receptive field. This is not a big problem for super-resolution task since high frequency component can be learn from local region meanwhile in order to giving the right color of an object, the network should look at the entire object to give decisions. Without any down-sampling operation, the receptive field is linear with the number of layers. Hence, we either need a super deep network or we only limit the network receptive field to a small number. In either cases, the performance of the network will be bad.
+
+
+To overcome the problem with small receptive field, we decide to change our generator network to be in encoder-decoder style. In such network architecture, the input is passed through a series of layers
+that progressively downsample, until a bottleneck layer, at which point the process is reversed (fig.~\ref{fig:network_2}. This help the network to have bigger receptive field and to be easy to learn high-level concept of object in the image. However, there is a great deal of low-level information
+shared between the input and output that can be loss when feed though this bottleneck architecture. 
+
+To give the generator a means to circumvent the bottleneck for information like this, we add skip connections. Specifically, we add skip connections between each layer i (in encoder part) and layer n − i (in decoder part), where n is the total number of layers. Each skip connection simply concatenates all channels at layer i with those at layer n − i (~\ref{fig:network_3})). These connection shuttle low-level information directly across the network.
+
 
 
 
@@ -136,46 +172,44 @@ Our model is a direct application of conditional GAN. Each color image can be pr
 \begin{center}
 \small
 %\resizebox{0.7\linewidth}{!}{
-\begin{tabular}{ @{}ccccccccccccc@{} }
+\begin{tabular}{ @{}ccccccccccccccccccccc@{} }
 \toprule
-\multicolumn{3}{c}{$G$} & \hspace{2mm} 
-& \multicolumn{3}{c}{$D$} \\
+\multicolumn{3}{c}{G encoder} & \hspace{2mm} 
+& \multicolumn{3}{c}{G decoder} & \hspace{2mm} 
+& \multicolumn{3}{c}{D} \\
 \cmidrule(r){1-3}
 \cmidrule(r){5-7}
+\cmidrule(r){9-11}
 
-Layer & Filter Size & Output Size && Layer & Filter Size & Output Size \\ \midrule
-Input  &       & $64\times64\times1$  && Input  &       & $64\times64\times3$ \\ \midrule
-Conv11 & 3x3/1 & $64\times64\times32$ && Conv11& 3x3/1 & $64\times64\times32$ \\
-Conv12 & 3x3/1 & $64\times64\times32$ && Conv12& 3x3/2 & $32\times32\times64$ \\ \midrule
+Layer & Filter Size & Output Size && Layer & Filter Size & Output Size && Layer & Filter Size & Output Size \\ \midrule
+Input  &       & $224\times224\times1$  && Input  &       & $7\times7\times196$  && Input  &       & $224\times224\times3$ \\ \midrule
+Conv1 & 3x3/1 & $224\times224\times32$ && FConv5 & 3x3/2 & $14\times14\times160$ && Conv1 & 3x3/1 & $224\times224\times32$ && \\
+Conv2 & 3x3/2 & $112\times112\times64$ && FConv4 & 3x3/2 & $28\times128\times128$ && Conv2 & 3x3/2 & $112\times112\times64$ && \\
 
-Conv21 & 3x3/1 & $64\times64\times32$ && Conv21& 3x3/1 & $32\times32\times64$ \\
-Conv22 & 3x3/1 & $64\times64\times32$ && Conv22& 3x3/2 & $16\times16\times128$ \\ \midrule
+Conv3 & 3x3/2 & $56\times56\times96$ && FConv3 & 3x3/2 & $56\times56\times96$ &&Conv3 & 3x3/2 & $56\times64\times96$ && \\
+Conv4 & 3x3/2 & $28\times28\times128$ && FConv2 & 3x3/2 & $112\times112\times64$ &&Conv4 & 3x3/2 & $28\times28\times128$ && \\
 
-Conv31 & 3x3/1 & $64\times64\times32$ && Conv31& 3x3/1 & $16\times16\times128$ \\
-Conv32 & 3x3/1 & $64\times64\times32$ && Conv32& 3x3/2 & $8\times8\times256$ \\   \midrule
+Conv5 & 3x3/2 & $14\times14\times160$ && FConv1 & 3x3/2 & $224\times224\times32$ &&Conv5 & 3x3/1 & $14\times14\times160$ &&\\
+Conv6 & 3x3/2 & $7\times7\times196$ && FConv0 & 3x3/1 & $224\times224\times2$ &&Conv6 & 3x3/1 & $7\times7\times196$ && \\   \midrule
 
-Conv41 & 3x3/1 & $64\times64\times32$ && Conv41& 3x3/1 & $8\times8\times256$ \\
-Conv42 & 3x3/1 & $64\times64\times32$ && Conv42& 3x3/2 & $4\times4\times256$ \\  \midrule
-
-Conv5  & 3x3/1 & $64\times64\times2$  && FC     &       & $1$ \\ \bottomrule
+&&&&&&&& AvgPool     &       & $1\times 1 \times 196$ \\
+&&&&&&&& FC          &       & $1$ \\ \bottomrule
 \end{tabular}%}
 \end{center}
 \end{table*}
 
-Our implementation is extensively modified from a publicly available implementation of DC-GAN~\footnote{https://github.com/carpedm20/DCGAN-tensorflow} using TensorFlow. In order to deal with any input size, $G$ will be a fully convolutional network as inspired by~\cite{long2015fully}. All convolution filter has size $3 \times 3$ as it has been shown to be effective in lasted CNN. 
+Our implementation is extensively modified from a publicly available implementation of DC-GAN~\footnote{https://github.com/carpedm20/DCGAN-tensorflow} using TensorFlow. All convolution filter has size $3 \times 3$ as it has been shown to be effective in lasted CNN. Each convolution layers are followed by batch normlaization and ReLU.
 
+
+\subsection{Dataset}
+We use the very popular ImageNet Large Scale Visual Recognition Challenge 2015 (ILSVRC) dataset for our evaluation purposes. We download the color images of Detection Dataset. There are a total of 456567 images for training and 20121 images for testing. All images are in JPEG format. To simplify the setup for $D$, all the training samples will have fixed size of $224\times 224$, which are randomly sample from origianl images. In the test state, sample images with any size can be used since it only go though the generator $G$. There is no pre-processing applied to the images except normalization to range $[-1,1]$. All the training images are used for creating the model, but we use only a handful of images for evaluation purposes.
+\subsection{Training Procedure}
 Following the optimization strategy in~\cite{radford2015unsupervised}, all models are trained with a batch size of $64$. 
 %using mini-batch SGD
 All weights are initialized from a zero-centered normal distribution with a standard deviation of $0.02$. 
-Adam optimizer~\cite{kingma2014adam} is used with a learning rate of $0.0002$ and momentum $0.5$.
-%$\beta_1 = 0.5$.
+Adam optimizer~\cite{kingma2014adam} is used with a learning rate of $0.0002$ and momentum $0.5$. To ensure that the generator is always catching up with the discriminator performance, for each update in discriminator weights, we update the generator weights 2 times in 1:2 ratio. The final model are obtained after $25$ training epochs.
 
-In conventional GANs, Goodfellow et al.~\cite{goodfellow2014generative} suggest to alternate between $k$ (usually $k$ = 1) steps of optimizing $D$ and one step of optimizing $G$. 
-This helps $D$ to maintain near-optimal solution as long as $G$ changes slowly. 
-
-
-Our networks will be train and test on ImageNet dataset. To simplify the setup for $D$, all the training samples will have fixed size of $64\times 64$, which are randomly sample from origianl images in ImageNet. In the test state, sample images with any size can be used since it only go though the generator $G$. There is no pre-processing applied to the images except normalization to range $[-1,1]$. 
-
+\begin{comment}
 \section{Timeline and Process}
 \begin{table}[t!]
 \caption{\small Timeline}
@@ -203,18 +237,29 @@ Date & Task & Finished \\ \midrule
 Tab~\ref{tab:timeline} lists majors milestones we plan for this project. Right now, we have finished the implementation and test it on our local machine. Next step, we will transfer the ImageNet dataset along with our code to train different networks on HPCC server. Based on analysis on different network architecture performance, we will find the optimal network for this image colorization task.s
 
 Because of the nature of the task, it's difficult to come up with a quantitative metrics to evaluate the performance. We're going to create a UI for people to decide which is more realistic between generated and ground truth images. This can give a sense to what extend our generated images can fool a human observer.
+\end{comment}
 
 \section{Result}
+The main objective of our work is to fool human into believing that the blend of the image color came from the original source whereas it really came from the generated model. In that sense, we only have a subjective evaluation of our study. It is hard to quantify the results since there is no baseline to measure how good our model can be. The evaluation of the results mainly depend on human perception of color in the image. We arrange the results in three columns; input, the output result from the generated image, and the actual ground-truth image. 
 
+\section{Conclusion}
+In this study, we show how powerful GANs can be to generate color models. The generated results are reasonable and are pretty successful in fooling humans. Some of the failure cases involve images which have rich color content. Our model is unable to learn the rich color content yet. However, we believe if training time is increased, it will have better chance of realizing color from gray-color images.
+{\small
+\bibliographystyle{ieee}
+\bibliography{egbib}
+}
 
-\begin{figure}[t!]
+\newpage
+\newpage
+
+\begin{figure*}[t!]
 \begin{center}
 \small
 \setlength{\tabcolsep}{2pt}
-\begin{tabular}{ cccc }
+\begin{tabular}{ ccccccccccccc }
 \includegraphics[width=\acollumsize]{img/result/1_in.JPEG}&
 \includegraphics[width=\acollumsize]{img/result/1.png}&
-\includegraphics[width=\acollumsize]{img/result/1_gt.JPEG}& \\
+\includegraphics[width=\acollumsize]{img/result/1_gt.JPEG}& &&
 
 \includegraphics[width=\acollumsize]{img/result/2_in.JPEG}&
 \includegraphics[width=\acollumsize]{img/result/2.png}&
@@ -222,46 +267,71 @@ Because of the nature of the task, it's difficult to come up with a quantitative
 
 \includegraphics[width=\acollumsize]{img/result/3_in.JPEG}&
 \includegraphics[width=\acollumsize]{img/result/3.png}&
-\includegraphics[width=\acollumsize]{img/result/3_gt.JPEG}& \\
+\includegraphics[width=\acollumsize]{img/result/3_gt.JPEG}& &&
 
-Input & Output & Ground-truth \\
 
-\end{tabular}
-\vspace{-2mm}
-\caption{\small Image colorization}
-\label{fig:result}
-\end{center}
-\end{figure}
+\includegraphics[width=\acollumsize]{img/result/13_in.JPEG}&
+\includegraphics[width=\acollumsize]{img/result/13.png}&
+\includegraphics[width=\acollumsize]{img/result/13_gt.JPEG}& \\
 
-\begin{figure}[t!]
-\begin{center}
-\small
-\setlength{\tabcolsep}{2pt}
-\begin{tabular}{ cccc }
+\includegraphics[width=\acollumsize]{img/result/16_in.JPEG}&
+\includegraphics[width=\acollumsize]{img/result/16.png}&
+\includegraphics[width=\acollumsize]{img/result/16_gt.JPEG}& &&
+
+\includegraphics[width=\acollumsize]{img/result/8_in.JPEG}&
+\includegraphics[width=\acollumsize]{img/result/8.png}&
+\includegraphics[width=\acollumsize]{img/result/8_gt.JPEG}& \\
+
+\includegraphics[width=\acollumsize]{img/result/12_in.JPEG}&
+\includegraphics[width=\acollumsize]{img/result/12.png}&
+\includegraphics[width=\acollumsize]{img/result/12_gt.JPEG}& &&
+
+\includegraphics[width=\acollumsize]{img/result/9_in.JPEG}&
+\includegraphics[width=\acollumsize]{img/result/9.png}&
+\includegraphics[width=\acollumsize]{img/result/9_gt.JPEG}& \\
+
+
+\includegraphics[width=\acollumsize]{img/result/10_in.JPEG}&
+\includegraphics[width=\acollumsize]{img/result/10.png}&
+\includegraphics[width=\acollumsize]{img/result/10_gt.JPEG}& && 
+
+\includegraphics[width=\acollumsize]{img/result/11_in.JPEG}&
+\includegraphics[width=\acollumsize]{img/result/11.png}&
+\includegraphics[width=\acollumsize]{img/result/11_gt.JPEG}& \\
+
+\includegraphics[width=\acollumsize]{img/result/23_in.JPEG}&
+\includegraphics[width=\acollumsize]{img/result/23.png}&
+\includegraphics[width=\acollumsize]{img/result/23_gt.JPEG}& &&
+
+\includegraphics[width=\acollumsize]{img/result/16_in.JPEG}&
+\includegraphics[width=\acollumsize]{img/result/16.png}&
+\includegraphics[width=\acollumsize]{img/result/16_gt.JPEG}& \\
+
+\includegraphics[width=\acollumsize]{img/result/26_in.JPEG}&
+\includegraphics[width=\acollumsize]{img/result/26.png}&
+\includegraphics[width=\acollumsize]{img/result/26_gt.JPEG}& &&
+
+
 \includegraphics[width=\acollumsize]{img/result/21_in.JPEG}&
 \includegraphics[width=\acollumsize]{img/result/21.png}&
 \includegraphics[width=\acollumsize]{img/result/21_gt.JPEG}& \\
 
 \includegraphics[width=\acollumsize]{img/result/22_in.JPEG}&
 \includegraphics[width=\acollumsize]{img/result/22.png}&
-\includegraphics[width=\acollumsize]{img/result/22_gt.JPEG}& \\
+\includegraphics[width=\acollumsize]{img/result/22_gt.JPEG}& &&
 
 \includegraphics[width=\acollumsize]{img/result/28_in.JPEG}&
 \includegraphics[width=\acollumsize]{img/result/28.png}&
 \includegraphics[width=\acollumsize]{img/result/28_gt.JPEG}& \\
 
-Input & Output & Ground-truth \\
+Input & Output & Ground-truth &&& Input & Output & Ground-truth \\
 
 \end{tabular}
 \vspace{-2mm}
-\caption{\small Image colorization (failure cases)}
-\label{fig:result_failure}
+\caption{\small Image colorization}
+\label{fig:result}
 \end{center}
-\end{figure}
+\end{figure*}
 
-{\small
-\bibliographystyle{ieee}
-\bibliography{egbib}
-}
 
 \end{document}
